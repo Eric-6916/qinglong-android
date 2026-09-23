@@ -1,0 +1,19 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# release 签名（v1.2.1，本地个人项目，禁止外泄）
+*.keystore
+*.jks
+keystore.properties
+
+# 文档：仅提交 README.md，其余 md（QA 报告 / 操作指南等过程文档）不入库
+*.md
+!README.md

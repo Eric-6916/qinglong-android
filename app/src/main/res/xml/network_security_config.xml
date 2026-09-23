@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  青龙面板常部署于内网 / 自建服务器，很多地址为 http 明文。
+  因此基础配置放行 cleartext；如需收紧，可将 cleartextTrafficPermitted 改为 false。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
