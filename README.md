@@ -3,7 +3,7 @@
 > 用 Jetpack Compose 打造的第三方 [青龙面板](https://github.com/whyour/qinglong) 移动端管理工具 —— 任务、脚本、环境变量、订阅、依赖、日志，一掌可控。
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.2.3-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.2.4-blue">
   <img alt="Min SDK" src="https://img.shields.io/badge/minSdk-24-green">
   <img alt="Target SDK" src="https://img.shields.io/badge/targetSdk-35-green">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-1.9.24-purple">
@@ -165,7 +165,11 @@ app/src/main/java/com/qinglong/panel/
 
 ## 🗺 更新日志
 
-### v1.2.3（当前版本）
+### v1.2.4（当前版本）
+- ℹ️ 新增「关于与开源声明」页：作者署名（Eric-6916）、开源仓库地址（点击跳转 / 复制）、问题反馈入口、MIT 协议与第三方非官方客户端声明
+- 🔗 设置中心新增「关于与开源声明」入口，可一键前往 GitHub 仓库
+
+### v1.2.3
 - 🎨 日志系列页面（日志目录 / 任务日志 / 订阅日志 / 系统日志）背景统一为全站四色 mesh 极光，顶部颜色与首页、任务页一致
 
 ### v1.2.2

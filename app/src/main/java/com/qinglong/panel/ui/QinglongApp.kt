@@ -63,6 +63,7 @@ import com.qinglong.panel.ui.script.ScriptDetailScreen
 import com.qinglong.panel.ui.script.ScriptListScreen
 import com.qinglong.panel.ui.script.ScriptUploadScreen
 import com.qinglong.panel.ui.setup.SetupScreen
+import com.qinglong.panel.ui.settings.AboutScreen
 import com.qinglong.panel.ui.settings.PanelsScreen
 import com.qinglong.panel.ui.settings.SettingsScreen
 import com.qinglong.panel.ui.sub.SubEditScreen
@@ -297,6 +298,7 @@ fun QinglongApp(container: AppContainer) {
                     onOpenConfigs = { navController.navigate(Routes.CONFIGS) },
                     onOpenLogFiles = { navController.navigate(Routes.LOG_FILES) },
                     onOpenSystemLog = { navController.navigate(Routes.SYSTEM_LOG) },
+                    onOpenAbout = { navController.navigate(Routes.ABOUT) },
                 )
             }
             composable(Routes.PANELS) {
@@ -430,6 +432,11 @@ fun QinglongApp(container: AppContainer) {
             composable(Routes.SYSTEM_LOG) {
                 SystemLogScreen(
                     container = container,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.ABOUT) {
+                AboutScreen(
                     onBack = { navController.popBackStack() },
                 )
             }

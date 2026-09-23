@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
@@ -80,6 +81,7 @@ fun SettingsScreen(
     onOpenConfigs: () -> Unit,
     onOpenLogFiles: () -> Unit,
     onOpenSystemLog: () -> Unit,
+    onOpenAbout: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -198,6 +200,13 @@ fun SettingsScreen(
                     title = "系统日志",
                     subtitle = "查看面板系统运行日志",
                     onClick = onOpenSystemLog,
+                )
+                HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                SettingsEntry(
+                    icon = Icons.Filled.Info,
+                    title = "关于与开源声明",
+                    subtitle = "作者署名、开源仓库地址与开源声明",
+                    onClick = onOpenAbout,
                 )
             }
 

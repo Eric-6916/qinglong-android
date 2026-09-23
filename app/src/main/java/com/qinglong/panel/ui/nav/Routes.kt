@@ -32,6 +32,9 @@ object Routes {
     const val LOG_FILES = "logfiles"
     const val SYSTEM_LOG = "system/log"
 
+    /** 关于 / 开源声明（作者署名 + 开源仓库地址） */
+    const val ABOUT = "about"
+
     /** 底部导航项对应的路由（用于控制底部栏显隐） */
     val bottomRoutes = setOf(HOME, CRON_LIST, SCRIPT_LIST, ENV_LIST, SUB_LIST)
 
