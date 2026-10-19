@@ -221,7 +221,13 @@ fun SystemScreen(container: AppContainer, onBack: () -> Unit) {
                         onValueChange = { draft = draft.copy(panelTitle = it) },
                         singleLine = true,
                         saving = state.saving,
-                    ) { vm.savePanelTitle(draft.panelTitle) }
+                    ) {
+                        if (draft.panelTitle.length > 100) {
+                            toast("面板标题最多 100 个字符")
+                        } else {
+                            vm.savePanelTitle(draft.panelTitle)
+                        }
+                    }
                 }
 
                 // 保存全部
@@ -235,6 +241,10 @@ fun SystemScreen(container: AppContainer, onBack: () -> Unit) {
                         }
                         if (conc == null) {
                             toast("任务并发数需为有效数字")
+                            return@Button
+                        }
+                        if (draft.panelTitle.length > 100) {
+                            toast("面板标题最多 100 个字符")
                             return@Button
                         }
                         vm.saveAll(

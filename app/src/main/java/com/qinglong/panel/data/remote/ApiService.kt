@@ -18,7 +18,13 @@ import com.qinglong.panel.data.model.LogChunk
 import com.qinglong.panel.data.model.LoginData
 import com.qinglong.panel.data.model.MovePayload
 import com.qinglong.panel.data.model.NotifyPayload
-import com.qinglong.panel.data.model.NumberPayload
+import com.qinglong.panel.data.model.CronConcurrencyPayload
+import com.qinglong.panel.data.model.DependenceProxyPayload
+import com.qinglong.panel.data.model.LinuxMirrorPayload
+import com.qinglong.panel.data.model.LogRemoveFrequencyPayload
+import com.qinglong.panel.data.model.NodeMirrorPayload
+import com.qinglong.panel.data.model.PanelTitlePayload
+import com.qinglong.panel.data.model.PythonMirrorPayload
 import com.qinglong.panel.data.model.PagedData
 import com.qinglong.panel.data.model.ScriptDeletePayload
 import com.qinglong.panel.data.model.ScriptFile
@@ -31,7 +37,6 @@ import com.qinglong.panel.data.model.Subscription
 import com.qinglong.panel.data.model.SubscriptionPayload
 import com.qinglong.panel.data.model.SystemConfig
 import com.qinglong.panel.data.model.SystemInfo
-import com.qinglong.panel.data.model.TextPayload
 import com.qinglong.panel.data.model.TokenData
 import com.qinglong.panel.data.model.TrendPoint
 import okhttp3.MultipartBody
@@ -271,25 +276,30 @@ interface QinglongApi {
     suspend fun systemConfig(): ApiResponse<SystemConfig>
 
     @PUT("system/config/log-remove-frequency")
-    suspend fun updateLogRemoveFrequency(@Body body: NumberPayload): ApiResponse<Unit>
+    suspend fun updateLogRemoveFrequency(@Body body: LogRemoveFrequencyPayload): ApiResponse<Unit>
 
     @PUT("system/config/cron-concurrency")
-    suspend fun updateCronConcurrency(@Body body: NumberPayload): ApiResponse<Unit>
+    suspend fun updateCronConcurrency(@Body body: CronConcurrencyPayload): ApiResponse<Unit>
 
     @PUT("system/config/dependence-proxy")
-    suspend fun updateDependenceProxy(@Body body: TextPayload): ApiResponse<Unit>
+    suspend fun updateDependenceProxy(@Body body: DependenceProxyPayload): ApiResponse<Unit>
 
+    /**
+     * node / linux 镜像：青龙返回 application/octet-stream 且任务启动即 res.end()，
+     * 响应体为空、不是 {code,data} 信封；按 ApiResponse 解析会抛 KotlinNullPointerException。
+     * 故直接取 ResponseBody，只校验 HTTP 状态。
+     */
     @PUT("system/config/node-mirror")
-    suspend fun updateNodeMirror(@Body body: TextPayload): ApiResponse<Unit>
+    suspend fun updateNodeMirror(@Body body: NodeMirrorPayload): ResponseBody
 
     @PUT("system/config/python-mirror")
-    suspend fun updatePythonMirror(@Body body: TextPayload): ApiResponse<Unit>
+    suspend fun updatePythonMirror(@Body body: PythonMirrorPayload): ApiResponse<Unit>
 
     @PUT("system/config/linux-mirror")
-    suspend fun updateLinuxMirror(@Body body: TextPayload): ApiResponse<Unit>
+    suspend fun updateLinuxMirror(@Body body: LinuxMirrorPayload): ResponseBody
 
     @PUT("system/config/panel-title")
-    suspend fun updatePanelTitle(@Body body: TextPayload): ApiResponse<Unit>
+    suspend fun updatePanelTitle(@Body body: PanelTitlePayload): ApiResponse<Unit>
 
     @PUT("system/notify")
     suspend fun notify(@Body body: NotifyPayload): ApiResponse<Unit>

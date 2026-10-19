@@ -269,8 +269,20 @@ data class ConfigInfo(
     val timezone: String? = null,
 )
 
-data class NumberPayload(val value: Long?)
-data class TextPayload(val value: String?)
+/**
+ * 系统配置单项提交体（青龙 PUT /api/system/config/<kebab-case>）。
+ *
+ * 服务端用 celebrate + Joi 校验 body，键名必须是 camelCase 配置名本身，
+ * 且默认 allowUnknown=false：多一个字段即 400 {"message":"Validation failed"}。
+ * 因此不能提交通用的 {"value": …}。
+ */
+data class LogRemoveFrequencyPayload(val logRemoveFrequency: Long?)
+data class CronConcurrencyPayload(val cronConcurrency: Long?)
+data class DependenceProxyPayload(val dependenceProxy: String?)
+data class NodeMirrorPayload(val nodeMirror: String?)
+data class PythonMirrorPayload(val pythonMirror: String?)
+data class LinuxMirrorPayload(val linuxMirror: String?)
+data class PanelTitlePayload(val panelTitle: String?)
 data class NotifyPayload(val title: String, val content: String)
 
 data class DashboardOverview(

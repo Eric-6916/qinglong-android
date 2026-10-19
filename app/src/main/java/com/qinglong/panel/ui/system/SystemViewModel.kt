@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.ViewModelProvider
+import com.google.gson.JsonElement
+import com.google.gson.JsonPrimitive
 import com.qinglong.panel.data.model.ConfigInfo
 import com.qinglong.panel.data.model.SystemInfo
 import com.qinglong.panel.data.repository.QinglongRepository
@@ -28,6 +30,9 @@ class SystemViewModel(private val repo: QinglongRepository) : ViewModel() {
     var state by mutableStateOf(SystemState())
         private set
 
+    /** 已落库配置基线：用于「保存全部」只提交变更项，避免无谓触发 pnpm/apt 任务 */
+    private var baseline: ConfigInfo? = null
+
     init {
         load()
     }
@@ -40,7 +45,10 @@ class SystemViewModel(private val repo: QinglongRepository) : ViewModel() {
                 onFailure = { state = state.copy(error = QinglongRepository.errorMessage(it)) },
             )
             repo.systemConfig().fold(
-                onSuccess = { state = state.copy(config = it.info) },
+                onSuccess = {
+                    state = state.copy(config = it.info)
+                    baseline = it.info
+                },
                 onFailure = { state = state.copy(error = QinglongRepository.errorMessage(it)) },
             )
             state = state.copy(loading = false)
@@ -53,27 +61,63 @@ class SystemViewModel(private val repo: QinglongRepository) : ViewModel() {
 
     // -------------------------------------------------- 单项保存
 
-    fun saveLogRemoveFrequency(value: Long) = saveItem("日志清理频率") { repo.updateLogRemoveFrequency(value) }
-    fun saveCronConcurrency(value: Long) = saveItem("任务并发数") { repo.updateCronConcurrency(value) }
-    fun saveDependenceProxy(value: String) = saveItem("依赖代理") { repo.updateDependenceProxy(value) }
-    fun saveNodeMirror(value: String) = saveItem("Node 镜像") { repo.updateNodeMirror(value) }
-    fun savePythonMirror(value: String) = saveItem("Python 镜像") { repo.updatePythonMirror(value) }
-    fun saveLinuxMirror(value: String) = saveItem("Linux 镜像") { repo.updateLinuxMirror(value) }
-    fun savePanelTitle(value: String) = saveItem("面板标题") { repo.updatePanelTitle(value) }
+    fun saveLogRemoveFrequency(value: Long) = saveItem(
+        "日志清理频率",
+        { it.copy(logRemoveFrequency = JsonPrimitive(value)) },
+    ) { repo.updateLogRemoveFrequency(value) }
 
-    /** 统一保存单项配置 */
-    private fun saveItem(label: String, block: suspend () -> Result<Unit>) {
+    fun saveCronConcurrency(value: Long) = saveItem(
+        "任务并发数",
+        { it.copy(cronConcurrency = JsonPrimitive(value)) },
+    ) { repo.updateCronConcurrency(value) }
+
+    fun saveDependenceProxy(value: String) = saveItem(
+        "依赖代理",
+        { it.copy(dependenceProxy = value) },
+    ) { repo.updateDependenceProxy(value) }
+
+    fun saveNodeMirror(value: String) = saveItem(
+        "Node 镜像",
+        { it.copy(nodeMirror = value) },
+    ) { repo.updateNodeMirror(value) }
+
+    fun savePythonMirror(value: String) = saveItem(
+        "Python 镜像",
+        { it.copy(pythonMirror = value) },
+    ) { repo.updatePythonMirror(value) }
+
+    fun saveLinuxMirror(value: String) = saveItem(
+        "Linux 镜像",
+        { it.copy(linuxMirror = value) },
+    ) { repo.updateLinuxMirror(value) }
+
+    fun savePanelTitle(value: String) = saveItem(
+        "面板标题",
+        { it.copy(panelTitle = value) },
+    ) { repo.updatePanelTitle(value) }
+
+    /** 统一保存单项配置；成功后同步基线，供「保存全部」做变更比较 */
+    private fun saveItem(
+        label: String,
+        apply: (ConfigInfo) -> ConfigInfo,
+        block: suspend () -> Result<Unit>,
+    ) {
         if (state.saving) return
         state = state.copy(saving = true)
         viewModelScope.launch {
             block().fold(
-                onSuccess = { state = state.copy(saving = false, message = "$label 已保存") },
-                onFailure = { e -> state = state.copy(saving = false, message = QinglongRepository.errorMessage(e)) },
+                onSuccess = {
+                    baseline = baseline?.let(apply) ?: apply(ConfigInfo())
+                    state = state.copy(saving = false, message = "$label 已保存")
+                },
+                onFailure = { e ->
+                    state = state.copy(saving = false, message = QinglongRepository.errorMessage(e))
+                },
             )
         }
     }
 
-    /** 一次性保存全部配置 */
+    /** 一次性保存全部配置：只提交与基线不同的项 */
     fun saveAll(
         logRemoveFrequency: Long,
         cronConcurrency: Long,
@@ -86,22 +130,75 @@ class SystemViewModel(private val repo: QinglongRepository) : ViewModel() {
         if (state.saving) return
         state = state.copy(saving = true)
         viewModelScope.launch {
-            val steps = listOf<Pair<String, suspend () -> Result<Unit>>>(
-                "日志清理频率" to { repo.updateLogRemoveFrequency(logRemoveFrequency) },
-                "任务并发数" to { repo.updateCronConcurrency(cronConcurrency) },
-                "依赖代理" to { repo.updateDependenceProxy(dependenceProxy) },
-                "Node 镜像" to { repo.updateNodeMirror(nodeMirror) },
-                "Python 镜像" to { repo.updatePythonMirror(pythonMirror) },
-                "Linux 镜像" to { repo.updateLinuxMirror(linuxMirror) },
-                "面板标题" to { repo.updatePanelTitle(panelTitle) },
-            )
+            val base = baseline
+            val steps = buildList {
+                if (base == null || base.logRemoveFrequency.longOrNull() != logRemoveFrequency) {
+                    add(
+                        SaveStep(
+                            "日志清理频率",
+                            { it.copy(logRemoveFrequency = JsonPrimitive(logRemoveFrequency)) },
+                        ) { repo.updateLogRemoveFrequency(logRemoveFrequency) },
+                    )
+                }
+                if (base == null || base.cronConcurrency.longOrNull() != cronConcurrency) {
+                    add(
+                        SaveStep(
+                            "任务并发数",
+                            { it.copy(cronConcurrency = JsonPrimitive(cronConcurrency)) },
+                        ) { repo.updateCronConcurrency(cronConcurrency) },
+                    )
+                }
+                if (base == null || base.dependenceProxy.orEmpty() != dependenceProxy) {
+                    add(
+                        SaveStep("依赖代理", { it.copy(dependenceProxy = dependenceProxy) }) {
+                            repo.updateDependenceProxy(dependenceProxy)
+                        },
+                    )
+                }
+                if (base == null || base.nodeMirror.orEmpty() != nodeMirror) {
+                    add(
+                        SaveStep("Node 镜像", { it.copy(nodeMirror = nodeMirror) }) {
+                            repo.updateNodeMirror(nodeMirror)
+                        },
+                    )
+                }
+                if (base == null || base.pythonMirror.orEmpty() != pythonMirror) {
+                    add(
+                        SaveStep("Python 镜像", { it.copy(pythonMirror = pythonMirror) }) {
+                            repo.updatePythonMirror(pythonMirror)
+                        },
+                    )
+                }
+                if (base == null || base.linuxMirror.orEmpty() != linuxMirror) {
+                    add(
+                        SaveStep("Linux 镜像", { it.copy(linuxMirror = linuxMirror) }) {
+                            repo.updateLinuxMirror(linuxMirror)
+                        },
+                    )
+                }
+                if (base == null || base.panelTitle.orEmpty() != panelTitle) {
+                    add(
+                        SaveStep("面板标题", { it.copy(panelTitle = panelTitle) }) {
+                            repo.updatePanelTitle(panelTitle)
+                        },
+                    )
+                }
+            }
+            if (steps.isEmpty()) {
+                state = state.copy(saving = false, message = "配置未变更")
+                return@launch
+            }
             val errors = mutableListOf<String>()
-            steps.forEach { (label, block) ->
-                block().onFailure { errors.add("$label：${QinglongRepository.errorMessage(it)}") }
+            steps.forEach { step ->
+                step.run().fold(
+                    onSuccess = { baseline = baseline?.let(step.apply) ?: step.apply(ConfigInfo()) },
+                    onFailure = { errors.add("${step.label}：${QinglongRepository.errorMessage(it)}") },
+                )
             }
             state = state.copy(
                 saving = false,
-                message = if (errors.isEmpty()) "全部配置已保存" else "有 ${errors.size} 项保存失败：${errors.joinToString("；")}",
+                message = if (errors.isEmpty()) "已保存 ${steps.size} 项配置"
+                else "有 ${errors.size} 项保存失败：${errors.joinToString("；")}",
             )
         }
     }
@@ -111,4 +208,18 @@ class SystemViewModel(private val repo: QinglongRepository) : ViewModel() {
             initializer { SystemViewModel(repo) }
         }
     }
+}
+
+/** 「保存全部」的单项步骤：label + 成功后对基线字段的更新 + 实际请求 */
+private data class SaveStep(
+    val label: String,
+    val apply: (ConfigInfo) -> ConfigInfo,
+    val run: suspend () -> Result<Unit>,
+)
+
+/** JsonElement（数字或数字字符串）转 Long，缺失/非法返回 null */
+private fun JsonElement?.longOrNull(): Long? {
+    if (this == null || !isJsonPrimitive) return null
+    return runCatching { asJsonPrimitive.asLong }.getOrNull()
+        ?: runCatching { asJsonPrimitive.asFloat.toLong() }.getOrNull()
 }

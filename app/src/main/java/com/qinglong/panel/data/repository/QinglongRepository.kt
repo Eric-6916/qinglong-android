@@ -21,7 +21,13 @@ import com.qinglong.panel.data.model.EnvPayload
 import com.qinglong.panel.data.model.LogChunk
 import com.qinglong.panel.data.model.MovePayload
 import com.qinglong.panel.data.model.NotifyPayload
-import com.qinglong.panel.data.model.NumberPayload
+import com.qinglong.panel.data.model.CronConcurrencyPayload
+import com.qinglong.panel.data.model.DependenceProxyPayload
+import com.qinglong.panel.data.model.LinuxMirrorPayload
+import com.qinglong.panel.data.model.LogRemoveFrequencyPayload
+import com.qinglong.panel.data.model.NodeMirrorPayload
+import com.qinglong.panel.data.model.PanelTitlePayload
+import com.qinglong.panel.data.model.PythonMirrorPayload
 import com.qinglong.panel.data.model.PagedData
 import com.qinglong.panel.data.model.ScriptDeletePayload
 import com.qinglong.panel.data.model.ScriptFile
@@ -34,7 +40,6 @@ import com.qinglong.panel.data.model.Subscription
 import com.qinglong.panel.data.model.SubscriptionPayload
 import com.qinglong.panel.data.model.SystemConfig
 import com.qinglong.panel.data.model.SystemInfo
-import com.qinglong.panel.data.model.TextPayload
 import com.qinglong.panel.data.model.TrendPoint
 import com.qinglong.panel.data.remote.ApiClient
 import com.qinglong.panel.data.remote.QinglongApi
@@ -159,7 +164,16 @@ class QinglongRepository(
         if (body.isNullOrBlank()) return null
         return runCatching {
             val json = com.google.gson.Gson().fromJson(body, com.google.gson.JsonObject::class.java)
-            json?.get("message")?.asJsonPrimitive?.asString?.takeIf { it.isNotBlank() }
+            val msg = json?.get("message")?.asJsonPrimitive?.asString?.takeIf { it.isNotBlank() }
+            // celebrate 校验失败：{"statusCode":400,"message":"Validation failed",
+            //   "validation":{"body":{"keys":["value"],"message":"\"value\" is not allowed"}}}
+            if (msg == "Validation failed") {
+                val detail = json?.getAsJsonObject("validation")?.entrySet()?.firstOrNull()
+                    ?.value?.asJsonObject?.get("message")?.asString
+                return@runCatching "配置项校验未通过" + (detail?.let { "：$it" } ?: "") +
+                    "（App 与面板版本可能不匹配，请反馈）"
+            }
+            msg
         }.getOrNull()
     }
 
@@ -665,25 +679,36 @@ class QinglongRepository(
         runCatching { dataCall { it.systemConfig() } }
 
     suspend fun updateLogRemoveFrequency(value: Long): Result<Unit> =
-        runCatching { unitCall { it.updateLogRemoveFrequency(NumberPayload(value)) } }
+        runCatching { unitCall { it.updateLogRemoveFrequency(LogRemoveFrequencyPayload(value)) } }
 
     suspend fun updateCronConcurrency(value: Long): Result<Unit> =
-        runCatching { unitCall { it.updateCronConcurrency(NumberPayload(value)) } }
+        runCatching { unitCall { it.updateCronConcurrency(CronConcurrencyPayload(value)) } }
 
-    suspend fun updateDependenceProxy(value: String): Result<Unit> =
-        runCatching { unitCall { it.updateDependenceProxy(TextPayload(value)) } }
+    /**
+     * 依赖代理。青龙的坑：value 为空时执行 fs.rm(dependenceProxy.sh) 且没有 force，
+     * 文件本就不存在时抛 ENOENT → HTTP 500。此时语义上「已经是空」，不当失败上报。
+     */
+    suspend fun updateDependenceProxy(value: String): Result<Unit> = runCatching {
+        try {
+            unitCall { it.updateDependenceProxy(DependenceProxyPayload(value)) }
+        } catch (e: ApiException) {
+            val alreadyEmpty = value.isBlank() && e.message?.contains("ENOENT") == true
+            if (!alreadyEmpty) throw e
+        }
+    }
 
+    /** node / linux 镜像为空 body 流式响应：rawCall + use{} 只校验状态并释放连接 */
     suspend fun updateNodeMirror(value: String): Result<Unit> =
-        runCatching { unitCall { it.updateNodeMirror(TextPayload(value)) } }
+        runCatching { rawCall { it.updateNodeMirror(NodeMirrorPayload(value)) }.use { } }
 
     suspend fun updatePythonMirror(value: String): Result<Unit> =
-        runCatching { unitCall { it.updatePythonMirror(TextPayload(value)) } }
+        runCatching { unitCall { it.updatePythonMirror(PythonMirrorPayload(value)) } }
 
     suspend fun updateLinuxMirror(value: String): Result<Unit> =
-        runCatching { unitCall { it.updateLinuxMirror(TextPayload(value)) } }
+        runCatching { rawCall { it.updateLinuxMirror(LinuxMirrorPayload(value)) }.use { } }
 
     suspend fun updatePanelTitle(value: String): Result<Unit> =
-        runCatching { unitCall { it.updatePanelTitle(TextPayload(value)) } }
+        runCatching { unitCall { it.updatePanelTitle(PanelTitlePayload(value)) } }
 
     suspend fun notify(title: String, content: String): Result<Unit> =
         runCatching { unitCall { it.notify(NotifyPayload(title, content)) } }
